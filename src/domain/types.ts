@@ -24,6 +24,19 @@ export type Vendor = Place & {
    *  spread across vendors is what usually decides whether consolidating is
    *  worth it — one kitchen twenty minutes behind another strands a courier. */
   prepMinutes: number
+  /**
+   * Whether the platform can tell this vendor when to start.
+   *
+   * A kitchen that can be held back turns prep skew from a fact into a
+   * decision: start the faster one later and both finish together, which costs
+   * nothing because the customer was always waiting on the slower one, and
+   * leaves the faster one's goods fresher for having been made later.
+   *
+   * Not everyone can. A pharmacy picking off a shelf has no prep to defer and a
+   * bakery working in fixed batches cannot move, so their goods sit from the
+   * moment they are ready.
+   */
+  schedulable: boolean
 }
 
 /** One vendor's share of a basket. */
@@ -107,8 +120,12 @@ export type Plan = {
   courierSeconds: number
   /** Of which, time spent stationary. */
   idleSeconds: number
-  /** Per vendor: seconds between goods being collected and reaching the
-   *  customer. Drives the freshness penalty. */
+  /**
+   * Per vendor: seconds between the goods being *made* and reaching the
+   * customer, which is not the same as time spent in a courier's bag. Goods
+   * from a vendor that cannot be held back start ageing the moment they are
+   * ready, whether or not anyone has collected them.
+   */
   carriageSeconds: Record<string, number>
 }
 

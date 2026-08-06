@@ -40,9 +40,9 @@ function totalCourierSeconds(legs: Leg[]): number {
   )
 }
 
-function carriage(collectedAt: Record<string, number>, completeAt: number) {
+function carriage(madeAt: Record<string, number>, completeAt: number) {
   return Object.fromEntries(
-    Object.entries(collectedAt).map(([vendorId, at]) => [vendorId, (completeAt - at) / 1000]),
+    Object.entries(madeAt).map(([vendorId, at]) => [vendorId, (completeAt - at) / 1000]),
   )
 }
 
@@ -57,7 +57,12 @@ function nearestCouriers(
     .filter((courier) => !exclude.has(courier.id))
     .map((courier) => ({
       courier,
-      cost: input.config.eta.seconds(courier, to.vendor, courier.vehicle),
+      // Rank by when they could actually be there, not how far away they are.
+      // A courier round the corner who is busy for forty minutes is worse than
+      // one across town who is free now.
+      cost:
+        courier.availableAt +
+        input.config.eta.seconds(courier, to.vendor, courier.vehicle) * 1000,
     }))
     .sort((a, b) => a.cost - b.cost)
     .slice(0, limit)
@@ -101,7 +106,7 @@ export function planSeparate(input: PlanningInput): PlanAttempt {
     legs.push(...run.legs, delivery.leg)
     Object.assign(collectedAt, run.collectedAt)
     carriageSeconds[order.vendorId] =
-      (delivery.completeAt - run.collectedAt[order.vendorId]) / 1000
+      (delivery.completeAt - run.madeAt[order.vendorId]) / 1000
     completeAt = Math.max(completeAt, delivery.completeAt)
   }
 
@@ -149,7 +154,7 @@ export function planSequential(input: PlanningInput): PlanAttempt {
         completeAt: delivery.completeAt,
         courierSeconds: totalCourierSeconds(legs),
         idleSeconds: run.idleSeconds,
-        carriageSeconds: carriage(run.collectedAt, delivery.completeAt),
+        carriageSeconds: carriage(run.madeAt, delivery.completeAt),
       }
 
       if (!best || input.objective(candidate) < input.objective(best)) best = candidate
@@ -160,21 +165,38 @@ export function planSequential(input: PlanningInput): PlanAttempt {
 }
 
 /** Best collection run for a group of vendors, over orderings and nearby couriers. */
+type Side = { courier: Courier; ordering: VendorOrder[]; run: CollectionRun }
+
 function bestRun(
   input: PlanningInput,
   orders: VendorOrder[],
   exclude: Set<string>,
-): { courier: Courier; run: CollectionRun } | null {
-  let best: { courier: Courier; run: CollectionRun } | null = null
+): Side | null {
+  let best: Side | null = null
 
   for (const courier of nearestCouriers(input, orders[0], exclude)) {
     for (const ordering of permutations(orders)) {
       const run = runCollection(courier, ordering, input.config)
-      if (!best || run.finishedAt < best.run.finishedAt) best = { courier, run }
+      if (!best || run.finishedAt < best.run.finishedAt) best = { courier, ordering, run }
     }
   }
 
   return best
+}
+
+/** Re-runs a side's collection starting later, so it reaches the meeting point
+ *  as the other side does instead of arriving early and waiting. */
+function shiftedBy(side: Side, delayMs: number, input: PlanningInput): Side {
+  if (delayMs <= 0) return side
+  return {
+    ...side,
+    run: runCollection(
+      side.courier,
+      side.ordering,
+      input.config,
+      side.courier.availableAt + delayMs,
+    ),
+  }
 }
 
 /**
@@ -202,14 +224,33 @@ export function planRendezvous(input: PlanningInput): PlanAttempt {
 
   let best: Plan | null = null
 
-  for (const [leftOrders, rightOrders] of twoWaySplits(basket.orders)) {
-    const left = bestRun(input, leftOrders, new Set())
-    if (!left) continue
-    const right = bestRun(input, rightOrders, new Set([left.courier.id]))
-    if (!right) continue
+  // A vendor is a meeting point in its own right. Whichever courier collects
+  // there has to stop anyway, so a handover that happens during that stop costs
+  // them no extra travel at all.
+  const candidatePoints: MeetingPoint[] = [
+    ...input.meetingPoints,
+    ...basket.orders.map((order) => ({ ...order.vendor, note: 'handover while collecting' })),
+  ]
 
-    for (const point of input.meetingPoints) {
-      const legToPoint = (side: typeof left) => {
+  for (const [leftOrders, rightOrders] of twoWaySplits(basket.orders)) {
+    const leftBase = bestRun(input, leftOrders, new Set())
+    if (!leftBase) continue
+    const rightBase = bestRun(input, rightOrders, new Set([leftBase.courier.id]))
+    if (!rightBase) continue
+
+    for (const point of candidatePoints) {
+      const arrivalAt = (side: Side) =>
+        side.run.finishedAt + config.eta.seconds(side.run.at, point, side.courier.vehicle) * 1000
+
+      // Both must be present before anything changes hands, so the earlier one
+      // simply starts later. Its kitchens then cook nearer to collection, which
+      // costs nothing and delivers fresher goods — the wait is removed rather
+      // than moved from the vendor counter to the roadside.
+      const meetAt = Math.max(arrivalAt(leftBase), arrivalAt(rightBase))
+      const left = shiftedBy(leftBase, meetAt - arrivalAt(leftBase), input)
+      const right = shiftedBy(rightBase, meetAt - arrivalAt(rightBase), input)
+
+      const legToPoint = (side: Side) => {
         const travel = config.eta.seconds(side.run.at, point, side.courier.vehicle)
         return {
           departAt: side.run.finishedAt,
@@ -222,8 +263,7 @@ export function planRendezvous(input: PlanningInput): PlanAttempt {
       const bothPresentAt = Math.max(leftHop.arriveAt, rightHop.arriveAt)
       const handoverDoneAt = bothPresentAt + config.handoverSeconds * 1000
 
-      // Whoever arrived first stands and waits. That is paid time, and the
-      // reason a geometrically neat meeting point can still be a poor one.
+      // Any remainder is a wait the shift could not absorb, and it is paid time.
       const leftIdle = (bothPresentAt - leftHop.arriveAt) / 1000
       const rightIdle = (bothPresentAt - rightHop.arriveAt) / 1000
 
@@ -289,7 +329,7 @@ export function planRendezvous(input: PlanningInput): PlanAttempt {
           idleSeconds:
             left.run.idleSeconds + right.run.idleSeconds + leftIdle + rightIdle,
           carriageSeconds: carriage(
-            { ...left.run.collectedAt, ...right.run.collectedAt },
+            { ...left.run.madeAt, ...right.run.madeAt },
             delivery.completeAt,
           ),
         }

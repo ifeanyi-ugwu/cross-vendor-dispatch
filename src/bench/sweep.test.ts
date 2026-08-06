@@ -21,19 +21,16 @@ describe('where each strategy wins', () => {
     expect(sweepCell(30, 0, 15, 'ambient').winner).toBe('rendezvous')
   })
 
-  it('abandons the handover as the kitchens fall out of step', () => {
-    // A handover has to be synchronised. Skew does not vanish when you split
-    // the collection: it moves to the meeting point, where two couriers wait
-    // instead of one.
-    const aligned = sweepCell(15, 0, 8, 'ambient')
-    const skewed = sweepCell(15, 30, 8, 'ambient')
-
-    expect(aligned.winner).toBe('rendezvous')
-    expect(skewed.winner).not.toBe('rendezvous')
+  it('keeps the handover viable even when the kitchens are far out of step', () => {
+    // Skew stops deciding this once the earlier courier simply starts later.
+    // The wait is removed rather than moved from the vendor counter to the
+    // roadside, so a thirty-minute gap no longer rules a handover out.
+    expect(sweepCell(0, 0, 8, 'ambient').winner).toBe('rendezvous')
+    expect(sweepCell(0, 30, 8, 'ambient').winner).toBe('rendezvous')
   })
 
   it('sends one courier to both vendors when they are close and mildly out of step', () => {
-    expect(sweepCell(15, 10, 8, 'ambient').winner).toBe('sequential')
+    expect(sweepCell(0, 5, 8, 'ambient').winner).toBe('sequential')
   })
 
   it('shrinks every consolidation regime once the goods are hot', () => {

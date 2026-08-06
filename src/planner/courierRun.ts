@@ -23,8 +23,15 @@ export type CollectionRun = {
   /** When the courier is loaded and leaving the last vendor. */
   finishedAt: number
   idleSeconds: number
-  /** Vendor id to the moment its goods were collected, for freshness scoring. */
+  /** Vendor id to the moment its goods were collected. */
   collectedAt: Record<string, number>
+  /**
+   * Vendor id to the moment its goods were made, which is what freshness is
+   * measured from. A schedulable kitchen produces as the courier arrives; one
+   * that cannot be held back produces as soon as it is able and the goods sit
+   * until someone comes.
+   */
+  madeAt: Record<string, number>
   at: Place
   cargo: string[]
 }
@@ -64,6 +71,7 @@ function simulateCollection(
 ): CollectionRun {
   const legs: Leg[] = []
   const collectedAt: Record<string, number> = {}
+  const madeAt: Record<string, number> = {}
   const cargo: string[] = []
 
   let clock = startAt
@@ -81,6 +89,11 @@ function simulateCollection(
     clock = Math.max(arriveAt, order.readyAt) + config.serviceSeconds * 1000
     cargo.push(order.vendorId)
     collectedAt[order.vendorId] = clock
+    // A kitchen that can be held back produces to meet the courier; one that
+    // cannot has been sitting since it was ready.
+    madeAt[order.vendorId] = order.vendor.schedulable
+      ? Math.max(order.readyAt, arriveAt)
+      : order.readyAt
 
     legs.push({
       courierId: courier.id,
@@ -96,7 +109,7 @@ function simulateCollection(
     at = order.vendor
   }
 
-  return { legs, finishedAt: clock, idleSeconds, collectedAt, at, cargo }
+  return { legs, finishedAt: clock, idleSeconds, collectedAt, madeAt, at, cargo }
 }
 
 /** Adds the final hop to the customer's door. */

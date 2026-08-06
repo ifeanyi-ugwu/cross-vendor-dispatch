@@ -8,12 +8,19 @@ import { straightLineEta } from '../routing/eta.ts'
 
 const config = { ...DEFAULT_CONFIG, eta: straightLineEta }
 
-const vendor = (id: string, lat: number, lng: number, prepMinutes: number): Vendor => ({
+const vendor = (
+  id: string,
+  lat: number,
+  lng: number,
+  prepMinutes: number,
+  schedulable = false,
+): Vendor => ({
   id,
   label: id,
   lat,
   lng,
   prepMinutes,
+  schedulable,
 })
 
 const courier = (id: string, lat: number, lng: number): Courier => ({
@@ -72,6 +79,43 @@ describe('runCollection', () => {
     // Deferring far enough to avoid the slow kitchen would miss nothing at the
     // quick one, so some waiting is unavoidable and must be visible.
     expect(run.idleSeconds).toBeGreaterThan(0)
+  })
+})
+
+describe('schedulable kitchens', () => {
+  /** Two vendors on the same side, far from the customer, badly out of step —
+   *  the case where one courier necessarily collects long before the other. */
+  function skewedPair(schedulable: boolean) {
+    const vendors = [
+      vendor('a', 25.4, 51.52, 8, schedulable),
+      vendor('b', 25.4, 51.56, 38, schedulable),
+    ]
+    const couriers = vendors.map((v, index) => courier(`c${index}`, v.lat, v.lng))
+    return planRendezvous(inputOf(vendors, couriers))
+  }
+
+  it('delivers the early vendor fresher by cooking nearer to collection', () => {
+    const fixed = skewedPair(false)
+    const scheduled = skewedPair(true)
+
+    expect(isPlan(fixed) && isPlan(scheduled)).toBe(true)
+    if (!isPlan(fixed) || !isPlan(scheduled)) return
+
+    // A kitchen that can be held back starts late enough to meet the courier,
+    // so its goods are not sitting for the length of the other vendor's prep.
+    expect(scheduled.carriageSeconds.a).toBeLessThan(fixed.carriageSeconds.a)
+
+    // The slow vendor was the constraint all along and gains nothing.
+    expect(scheduled.carriageSeconds.b).toBeCloseTo(fixed.carriageSeconds.b, -2)
+  })
+
+  it('does not pretend a shop with nothing to prepare can be scheduled', () => {
+    const fixed = skewedPair(false)
+    expect(isPlan(fixed)).toBe(true)
+    if (!isPlan(fixed)) return
+
+    // Goods age from the moment they are ready, whether or not anyone has come.
+    expect(fixed.carriageSeconds.a).toBeGreaterThan(fixed.carriageSeconds.b)
   })
 })
 

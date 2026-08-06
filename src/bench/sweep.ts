@@ -44,6 +44,7 @@ export type SweepCell = {
   prepSkewMinutes: number
   radiusKm: number
   temperature: Temperature
+  schedulable: boolean
   winner: StrategyName
   totals: Record<StrategyName, number | null>
 }
@@ -53,11 +54,18 @@ export function sweepCell(
   prepSkewMinutes: number,
   radiusKm: number,
   temperature: Temperature,
+  schedulable = false,
 ): SweepCell {
   const half = spreadDegrees / 2
   const vendors: Vendor[] = [
-    { id: 'v-a', label: 'Vendor A', ...onCircle(radiusKm, -half), prepMinutes: 8 },
-    { id: 'v-b', label: 'Vendor B', ...onCircle(radiusKm, half), prepMinutes: 8 + prepSkewMinutes },
+    { id: 'v-a', label: 'Vendor A', ...onCircle(radiusKm, -half), prepMinutes: 8, schedulable },
+    {
+      id: 'v-b',
+      label: 'Vendor B',
+      ...onCircle(radiusKm, half),
+      prepMinutes: 8 + prepSkewMinutes,
+      schedulable,
+    },
   ]
 
   const basket: Basket = {
@@ -106,6 +114,7 @@ export function sweepCell(
     prepSkewMinutes,
     radiusKm,
     temperature,
+    schedulable,
     winner: scored[0].plan.strategy,
     totals,
   }
@@ -116,13 +125,18 @@ export function sweep(options: {
   skews: number[]
   radii: number[]
   temperatures: Temperature[]
+  schedulable?: boolean[]
 }): SweepCell[] {
   const cells: SweepCell[] = []
-  for (const temperature of options.temperatures) {
-    for (const radiusKm of options.radii) {
-      for (const spreadDegrees of options.spreads) {
-        for (const prepSkewMinutes of options.skews) {
-          cells.push(sweepCell(spreadDegrees, prepSkewMinutes, radiusKm, temperature))
+  for (const schedulable of options.schedulable ?? [false]) {
+    for (const temperature of options.temperatures) {
+      for (const radiusKm of options.radii) {
+        for (const spreadDegrees of options.spreads) {
+          for (const prepSkewMinutes of options.skews) {
+            cells.push(
+              sweepCell(spreadDegrees, prepSkewMinutes, radiusKm, temperature, schedulable),
+            )
+          }
         }
       }
     }

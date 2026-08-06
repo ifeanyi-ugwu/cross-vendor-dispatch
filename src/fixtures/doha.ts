@@ -1,19 +1,25 @@
 import type { Courier, MeetingPoint, Vendor } from '../domain/types.ts'
 
-/** Real districts, so distances and the shape of the city behave plausibly. */
+/**
+ * Real districts, so distances and the shape of the city behave plausibly.
+ *
+ * `schedulable` marks who will cook to a given time. Kitchens working to order
+ * generally will; a bakery on fixed batches and a shop picking off a shelf have
+ * nothing to hold back, so their goods start ageing the moment they are ready.
+ */
 export const VENDORS: Vendor[] = [
-  { id: 'v-westbay', label: 'West Bay Grill', lat: 25.3208, lng: 51.53, prepMinutes: 14 },
-  { id: 'v-msheireb', label: 'Msheireb Bakery', lat: 25.2867, lng: 51.5262, prepMinutes: 8 },
-  { id: 'v-souq', label: 'Souq Waqif Spices', lat: 25.2867, lng: 51.5333, prepMinutes: 5 },
-  { id: 'v-sadd', label: 'Al Sadd Pharmacy', lat: 25.276, lng: 51.509, prepMinutes: 6 },
-  { id: 'v-pearl', label: 'The Pearl Patisserie', lat: 25.3697, lng: 51.55, prepMinutes: 18 },
-  { id: 'v-katara', label: 'Katara Seafood', lat: 25.3594, lng: 51.5262, prepMinutes: 22 },
-  { id: 'v-education', label: 'Education City Books', lat: 25.315, lng: 51.437, prepMinutes: 4 },
-  { id: 'v-lusail', label: 'Lusail Marina Deli', lat: 25.42, lng: 51.53, prepMinutes: 11 },
-  { id: 'v-wakrah', label: 'Al Wakrah Fishmonger', lat: 25.1715, lng: 51.6034, prepMinutes: 9 },
-  { id: 'v-aspire', label: 'Aspire Sports Shop', lat: 25.265, lng: 51.445, prepMinutes: 3 },
-  { id: 'v-villaggio', label: 'Villaggio Electronics', lat: 25.2597, lng: 51.4437, prepMinutes: 7 },
-  { id: 'v-rayyan', label: 'Al Rayyan Butcher', lat: 25.2919, lng: 51.4244, prepMinutes: 12 },
+  { id: 'v-westbay', label: 'West Bay Grill', lat: 25.3208, lng: 51.53, prepMinutes: 14, schedulable: true },
+  { id: 'v-msheireb', label: 'Msheireb Bakery', lat: 25.2867, lng: 51.5262, prepMinutes: 8, schedulable: false },
+  { id: 'v-souq', label: 'Souq Waqif Spices', lat: 25.2867, lng: 51.5333, prepMinutes: 5, schedulable: false },
+  { id: 'v-sadd', label: 'Al Sadd Pharmacy', lat: 25.276, lng: 51.509, prepMinutes: 6, schedulable: false },
+  { id: 'v-pearl', label: 'The Pearl Patisserie', lat: 25.3697, lng: 51.55, prepMinutes: 18, schedulable: true },
+  { id: 'v-katara', label: 'Katara Seafood', lat: 25.3594, lng: 51.5262, prepMinutes: 22, schedulable: true },
+  { id: 'v-education', label: 'Education City Books', lat: 25.315, lng: 51.437, prepMinutes: 4, schedulable: false },
+  { id: 'v-lusail', label: 'Lusail Marina Deli', lat: 25.42, lng: 51.53, prepMinutes: 11, schedulable: true },
+  { id: 'v-wakrah', label: 'Al Wakrah Fishmonger', lat: 25.1715, lng: 51.6034, prepMinutes: 9, schedulable: false },
+  { id: 'v-aspire', label: 'Aspire Sports Shop', lat: 25.265, lng: 51.445, prepMinutes: 3, schedulable: false },
+  { id: 'v-villaggio', label: 'Villaggio Electronics', lat: 25.2597, lng: 51.4437, prepMinutes: 7, schedulable: false },
+  { id: 'v-rayyan', label: 'Al Rayyan Butcher', lat: 25.2919, lng: 51.4244, prepMinutes: 12, schedulable: true },
 ]
 
 /**
