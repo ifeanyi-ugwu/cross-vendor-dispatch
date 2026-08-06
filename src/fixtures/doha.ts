@@ -12,7 +12,8 @@ export const VENDORS: Vendor[] = [
   { id: 'v-msheireb', label: 'Msheireb Bakery', lat: 25.2867, lng: 51.5262, prepMinutes: 8, schedulable: false },
   { id: 'v-souq', label: 'Souq Waqif Spices', lat: 25.2867, lng: 51.5333, prepMinutes: 5, schedulable: false },
   { id: 'v-sadd', label: 'Al Sadd Pharmacy', lat: 25.276, lng: 51.509, prepMinutes: 6, schedulable: false },
-  { id: 'v-pearl', label: 'The Pearl Patisserie', lat: 25.3697, lng: 51.55, prepMinutes: 18, schedulable: true },
+  // Cakes are made in the morning, so there is nothing to hold back.
+  { id: 'v-pearl', label: 'The Pearl Patisserie', lat: 25.3697, lng: 51.55, prepMinutes: 18, schedulable: false },
   { id: 'v-katara', label: 'Katara Seafood', lat: 25.3594, lng: 51.5262, prepMinutes: 22, schedulable: true },
   { id: 'v-education', label: 'Education City Books', lat: 25.315, lng: 51.437, prepMinutes: 4, schedulable: false },
   { id: 'v-lusail', label: 'Lusail Marina Deli', lat: 25.42, lng: 51.53, prepMinutes: 11, schedulable: true },
