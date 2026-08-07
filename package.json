@@ -6,8 +6,11 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "routing:build": "./tools/build-routing-matrix.sh"
   },
   "dependencies": {
     "@ant-design/icons": "^6.3.2",

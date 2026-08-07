@@ -152,7 +152,7 @@ OpenStreetMap extract, builds a routing graph with OSRM and writes a table of
 driving times between every fixed place:
 
 ```bash
-./tools/build-routing-matrix.sh    # needs Docker, ~3GB disk, a few minutes
+npm run routing:build    # needs Docker, ~3GB disk, a few minutes
 ```
 
 Only the 60KB result is committed. Running the app never touches any of it.
