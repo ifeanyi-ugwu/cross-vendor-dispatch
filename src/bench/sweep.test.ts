@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { contestedShare, sweep, sweepCell, winRates } from './sweep.ts'
+import { haversineMetres } from '../domain/geo.ts'
+import { contestedShare, DEFAULT_ORIGIN, sweep, sweepCell, winRates } from './sweep.ts'
 
 /**
  * The claims the project exists to make. Each is a statement about when
@@ -89,5 +90,39 @@ describe('where each strategy wins', () => {
     expect(rates.separate).toBeGreaterThan(0.5)
     expect(rates.rendezvous).toBeGreaterThan(0)
     expect(rates.rendezvous).toBeLessThan(0.3)
+  })
+})
+
+describe('nothing here is specific to Doha', () => {
+  const elsewhere = [
+    { id: 'c', label: 'Oslo', lat: 59.913, lng: 10.752 },
+    { id: 'c', label: 'Nairobi', lat: -1.286, lng: 36.817 },
+    { id: 'c', label: 'Quito', lat: -0.18, lng: -78.467 },
+  ]
+
+  it('places vendors the intended distance apart at any latitude', () => {
+    // A degree of longitude is a tenth shorter at Doha than at the equator and
+    // half as long near Oslo. Fixing that conversion rather than taking it at
+    // the origin turns the circle into an ellipse, and the sweep then reports
+    // an angle it never set.
+    for (const origin of [DEFAULT_ORIGIN, ...elsewhere]) {
+      const { vendorPositions: [a, b] } = sweepCell(90, 0, 10, 'ambient', false, origin)
+
+      expect(haversineMetres(origin, a) / 1000).toBeCloseTo(10, 0)
+      expect(haversineMetres(origin, b) / 1000).toBeCloseTo(10, 0)
+      // Two points 90 degrees apart on a circle of radius r lie r*sqrt(2) apart.
+      expect(haversineMetres(a, b) / 1000).toBeCloseTo(10 * Math.SQRT2, 0)
+    }
+  })
+
+  it('reaches the same verdict on the same geometry anywhere', () => {
+    // Straight-line estimates depend on distance, not position, so a shape
+    // should plan identically wherever it is put down.
+    for (const origin of elsewhere) {
+      expect(sweepCell(180, 0, 15, 'ambient', false, origin).winner).toBe('separate')
+      expect(sweepCell(0, 0, 8, 'ambient', false, origin).winner).toBe(
+        sweepCell(0, 0, 8, 'ambient', false, DEFAULT_ORIGIN).winner,
+      )
+    }
   })
 })

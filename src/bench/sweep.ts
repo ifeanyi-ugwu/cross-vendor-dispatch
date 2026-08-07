@@ -20,22 +20,31 @@ import { planAll } from '../planner/strategies.ts'
 import { straightLineEta } from '../routing/eta.ts'
 import type { StrategyName } from '../domain/types.ts'
 
-const CUSTOMER: LatLng & { id: string; label: string } = {
+/** Where the sweep is run. Doha by default, but nothing here depends on it —
+ *  pass another origin to check the planner behaves the same elsewhere. */
+export const DEFAULT_ORIGIN: LatLng & { id: string; label: string } = {
   id: 'cust',
   label: 'Customer',
   lat: 25.2854,
   lng: 51.531,
 }
 
-/** Degrees of latitude per kilometre, and the longitude equivalent at Doha. */
-const KM_LAT = 1 / 111.32
-const KM_LNG = 1 / (111.32 * Math.cos((25.2854 * Math.PI) / 180))
+const KM_PER_DEGREE_LAT = 111.32
 
-function onCircle(radiusKm: number, bearingDegrees: number): LatLng {
+/**
+ * Places a point a given distance and bearing from the origin.
+ *
+ * A degree of longitude shrinks towards the poles, so the conversion has to be
+ * taken at the origin's own latitude rather than fixed. Hardcoding it turns the
+ * circle into an ellipse anywhere else, and the angle the sweep reports stops
+ * being the angle it measured.
+ */
+function onCircle(origin: LatLng, radiusKm: number, bearingDegrees: number): LatLng {
   const radians = (bearingDegrees * Math.PI) / 180
+  const kmPerDegreeLng = KM_PER_DEGREE_LAT * Math.cos((origin.lat * Math.PI) / 180)
   return {
-    lat: CUSTOMER.lat + radiusKm * Math.cos(radians) * KM_LAT,
-    lng: CUSTOMER.lng + radiusKm * Math.sin(radians) * KM_LNG,
+    lat: origin.lat + (radiusKm * Math.cos(radians)) / KM_PER_DEGREE_LAT,
+    lng: origin.lng + (radiusKm * Math.sin(radians)) / kmPerDegreeLng,
   }
 }
 
@@ -45,6 +54,9 @@ export type SweepCell = {
   radiusKm: number
   temperature: Temperature
   schedulable: boolean
+  /** Where the two vendors were placed, so a caller can check the geometry it
+   *  asked for is the geometry it got. */
+  vendorPositions: [LatLng, LatLng]
   winner: StrategyName
   /** Every strategy too close to the winner to be told apart from it. More
    *  than one means the cell is a tie, not a result. */
@@ -58,14 +70,15 @@ export function sweepCell(
   radiusKm: number,
   temperature: Temperature,
   schedulable = false,
+  origin: LatLng & { id: string; label: string } = DEFAULT_ORIGIN,
 ): SweepCell {
   const half = spreadDegrees / 2
   const vendors: Vendor[] = [
-    { id: 'v-a', label: 'Vendor A', ...onCircle(radiusKm, -half), prepMinutes: 8, schedulable },
+    { id: 'v-a', label: 'Vendor A', ...onCircle(origin, radiusKm, -half), prepMinutes: 8, schedulable },
     {
       id: 'v-b',
       label: 'Vendor B',
-      ...onCircle(radiusKm, half),
+      ...onCircle(origin, radiusKm, half),
       prepMinutes: 8 + prepSkewMinutes,
       schedulable,
     },
@@ -74,7 +87,7 @@ export function sweepCell(
   const basket: Basket = {
     id: 'sweep',
     placedAt: 0,
-    customer: CUSTOMER,
+    customer: origin,
     orders: vendors.map((vendor) => ({
       vendorId: vendor.id,
       vendor,
@@ -118,6 +131,10 @@ export function sweepCell(
     radiusKm,
     temperature,
     schedulable,
+    vendorPositions: [
+      { lat: vendors[0].lat, lng: vendors[0].lng },
+      { lat: vendors[1].lat, lng: vendors[1].lng },
+    ],
     winner: scored[0].plan.strategy,
     tied: leaders(scored).map((entry) => entry.plan.strategy),
     totals,
