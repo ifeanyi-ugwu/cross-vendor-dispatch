@@ -72,12 +72,20 @@ Sweeping those two variables gives a clear answer and a clear limit.
 ambient goods, vendors 8km out
 
   skew\spread   0°  15°  30°  45°  60°  90° 120° 150° 180°
-      0min       R    R    R    R    R    .    .    .    .
-     10min       S    S    R    .    .    .    .    .    .
-     30min       R    R    R    .    .    .    .    .    .
+      0min       R    ~    ~    ~    ~    ~    ~    .    .
+     10min       S    ~    R    ~    .    .    .    .    .
+     30min       R    R    ~    .    .    .    .    .    .
 
-  . separate     S sequential     R rendezvous
+  . separate   S sequential   R handover   ~ too close to call
 ```
+
+A quarter of the grid is `~`. Travel times come from free-flow speed limits
+with no congestion and the cost figures are illustrative, so nothing here is
+accurate to a percent — and half the contested cells are decided by less than
+that. Reporting a winner in them would be inventing a preference. Those cells
+are also exactly the ones that appeared to flip at random before ties were
+reported, which turned out to be the model expressing confidence it did not
+have rather than a defect in the search.
 
 **Past 60° of spread, a handover never wins.** Not with better timing, not with
 scheduling, not at any distance. When the vendors sit on opposite sides of the

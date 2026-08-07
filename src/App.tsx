@@ -18,7 +18,7 @@ import { isPlan } from './domain/types.ts'
 import { COURIERS, CUSTOMER_AREAS, MEETING_POINTS, VENDORS } from './fixtures/doha.ts'
 import { equalShares, shapleyShares, valueProportionalShares } from './planner/allocate.ts'
 import { DEFAULT_CONFIG } from './planner/courierRun.ts'
-import { objectiveFor, operatingCost, rank } from './planner/evaluate.ts'
+import { leaders, objectiveFor, operatingCost, rank } from './planner/evaluate.ts'
 import { planAll } from './planner/strategies.ts'
 import { straightLineEta } from './routing/eta.ts'
 import { routedEta } from './routing/matrix.ts'
@@ -82,6 +82,10 @@ export default function App() {
   }, [basket, config])
 
   const shown = scored.find((entry) => entry.plan.strategy === chosen) ?? scored[0] ?? null
+
+  // Plans within the model's own accuracy of each other. Calling one of them
+  // best would be inventing a preference the numbers do not support.
+  const tied = new Set(leaders(scored).map((entry) => entry.plan.strategy))
 
   const fixedScheduleCount = vendorIds.filter(
     (id) => VENDORS.find((vendor) => vendor.id === id)?.schedulable === false,
@@ -220,7 +224,12 @@ export default function App() {
                 >
                   <span className="plan-row-head">
                     <strong>{entry.plan.strategy}</strong>
-                    {index === 0 && <Tag color="green">best</Tag>}
+                    {tied.has(entry.plan.strategy) &&
+                      (tied.size > 1 ? (
+                        index === 0 && <Tag color="gold">too close to call</Tag>
+                      ) : (
+                        <Tag color="green">best</Tag>
+                      ))}
                     <span className="plan-row-total">{riyal(entry.total)}</span>
                   </span>
                   <Typography.Text type="secondary" className="hint">

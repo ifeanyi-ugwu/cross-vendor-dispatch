@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { sweep, sweepCell, winRates } from './sweep.ts'
+import { contestedShare, sweep, sweepCell, winRates } from './sweep.ts'
 
 /**
  * The claims the project exists to make. Each is a statement about when
@@ -50,6 +50,28 @@ describe('where each strategy wins', () => {
     const consolidated = (rates: ReturnType<typeof winRates>) => rates.sequential + rates.rendezvous
 
     expect(consolidated(winRates(hot))).toBeLessThan(consolidated(winRates(ambient)))
+  })
+
+  it('admits when two strategies are too close to tell apart', () => {
+    const cells = sweep({
+      spreads: [0, 15, 30, 45, 60, 90, 120, 150, 180],
+      skews: [0, 5, 10, 15, 20, 30],
+      radii: [3, 8, 15],
+      temperatures: ['ambient', 'hot'],
+    })
+
+    // Roughly a quarter of the grid is decided by less than the model's own
+    // accuracy. Reporting a winner there would be inventing a preference, and
+    // it is what made the map look like it was flipping at random.
+    expect(contestedShare(cells)).toBeGreaterThan(0.15)
+    expect(contestedShare(cells)).toBeLessThan(0.45)
+  })
+
+  it('is decisive where the geometry decides it', () => {
+    // Vendors on opposite sides of the customer is not a close call.
+    const opposed = sweepCell(180, 0, 15, 'ambient')
+
+    expect(opposed.tied).toEqual(['separate'])
   })
 
   it('leaves separate deliveries the right answer most of the time', () => {

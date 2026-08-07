@@ -164,24 +164,31 @@ export function planSequential(input: PlanningInput): PlanAttempt {
   return best ?? { strategy: 'sequential', reason: 'no viable ordering' }
 }
 
-/** Best collection run for a group of vendors, over orderings and nearby couriers. */
 type Side = { courier: Courier; ordering: VendorOrder[]; run: CollectionRun }
 
-function bestRun(
+/**
+ * Every way one courier could collect a group of vendors.
+ *
+ * Returned in full rather than reduced to a best, because "best" is not
+ * decidable here: the collection that finishes earliest may finish somewhere
+ * awkward for the handover, and which meeting point is reachable is not known
+ * until both sides and the point are considered together. Choosing early is
+ * what made adjacent scenarios flip between plans for no visible reason.
+ */
+function collectionCandidates(
   input: PlanningInput,
   orders: VendorOrder[],
   exclude: Set<string>,
-): Side | null {
-  let best: Side | null = null
+): Side[] {
+  const candidates: Side[] = []
 
   for (const courier of nearestCouriers(input, orders[0], exclude)) {
     for (const ordering of permutations(orders)) {
-      const run = runCollection(courier, ordering, input.config)
-      if (!best || run.finishedAt < best.run.finishedAt) best = { courier, ordering, run }
+      candidates.push({ courier, ordering, run: runCollection(courier, ordering, input.config) })
     }
   }
 
-  return best
+  return candidates
 }
 
 /** Re-runs a side's collection starting later, so it reaches the meeting point
@@ -233,11 +240,11 @@ export function planRendezvous(input: PlanningInput): PlanAttempt {
   ]
 
   for (const [leftOrders, rightOrders] of twoWaySplits(basket.orders)) {
-    const leftBase = bestRun(input, leftOrders, new Set())
-    if (!leftBase) continue
-    const rightBase = bestRun(input, rightOrders, new Set([leftBase.courier.id]))
-    if (!rightBase) continue
-
+    // Courier, visit order and meeting point are chosen together. Fixing the
+    // couriers first and the point afterwards means committing to a pair before
+    // knowing where they have to converge.
+    for (const leftBase of collectionCandidates(input, leftOrders, new Set())) {
+    for (const rightBase of collectionCandidates(input, rightOrders, new Set([leftBase.courier.id]))) {
     for (const point of candidatePoints) {
       const arrivalAt = (side: Side) =>
         side.run.finishedAt + config.eta.seconds(side.run.at, point, side.courier.vehicle) * 1000
@@ -336,6 +343,8 @@ export function planRendezvous(input: PlanningInput): PlanAttempt {
 
         if (!best || input.objective(candidate) < input.objective(best)) best = candidate
       }
+    }
+    }
     }
   }
 

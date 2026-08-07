@@ -15,7 +15,7 @@
 import type { Basket, Courier, LatLng, Temperature, Vendor } from '../domain/types.ts'
 import { MEETING_POINTS } from '../fixtures/doha.ts'
 import { DEFAULT_CONFIG } from '../planner/courierRun.ts'
-import { objectiveFor, rank } from '../planner/evaluate.ts'
+import { leaders, objectiveFor, rank } from '../planner/evaluate.ts'
 import { planAll } from '../planner/strategies.ts'
 import { straightLineEta } from '../routing/eta.ts'
 import type { StrategyName } from '../domain/types.ts'
@@ -46,6 +46,9 @@ export type SweepCell = {
   temperature: Temperature
   schedulable: boolean
   winner: StrategyName
+  /** Every strategy too close to the winner to be told apart from it. More
+   *  than one means the cell is a tie, not a result. */
+  tied: StrategyName[]
   totals: Record<StrategyName, number | null>
 }
 
@@ -116,6 +119,7 @@ export function sweepCell(
     temperature,
     schedulable,
     winner: scored[0].plan.strategy,
+    tied: leaders(scored).map((entry) => entry.plan.strategy),
     totals,
   }
 }
@@ -142,6 +146,13 @@ export function sweep(options: {
     }
   }
   return cells
+}
+
+/** Cells where more than one strategy is within the indifference band, so the
+ *  reported winner is an artefact of rounding rather than a finding. */
+export function contestedShare(cells: SweepCell[]): number {
+  if (cells.length === 0) return 0
+  return cells.filter((cell) => cell.tied.length > 1).length / cells.length
 }
 
 export function winRates(cells: SweepCell[]): Record<StrategyName, number> {

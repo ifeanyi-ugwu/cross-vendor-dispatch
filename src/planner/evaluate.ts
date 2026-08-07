@@ -103,6 +103,28 @@ export function objectiveFor(
   return (plan) => score(plan, basket, cost, quality).total
 }
 
+/**
+ * How close two plans must be before calling one of them better is dishonest.
+ *
+ * Travel times come from free-flow speed limits with no congestion, and the
+ * cost and decay figures are illustrative. Nothing here is accurate to a
+ * percent, so a plan that scores a fraction better has not been shown to be
+ * better at all — and half the contested cells in the regime sweep are decided
+ * by less than this.
+ */
+export const INDIFFERENCE = 0.05
+
+/**
+ * Every plan close enough to the best to be indistinguishable from it. More
+ * than one means the honest answer is that it does not matter which is picked,
+ * which is a more useful thing to tell a dispatcher than a false preference.
+ */
+export function leaders(scored: Scored[], tolerance = INDIFFERENCE): Scored[] {
+  if (scored.length === 0) return []
+  const best = scored[0].total
+  return scored.filter((entry) => (entry.total - best) / best <= tolerance)
+}
+
 export function rank(
   attempts: PlanAttempt[],
   basket: Basket,
