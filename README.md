@@ -163,6 +163,36 @@ and congestion is not modelled. And the table covers the fixed places only —
 the regime sweep invents synthetic geometry no real road serves, so it still
 uses the straight-line estimate.
 
+## Executing the plan
+
+A plan is a claim about the future. Kitchens run late and couriers get held up,
+and a handover is the most breakable of the three because it needs two people
+to converge on one place at one time.
+
+Custody is recorded as an append-only log rather than a field holding the
+current carrier. A field answers who has the goods now; the question a dispute
+actually asks is who had them at 14:32, and that is unrecoverable once the
+field has been overwritten. A handover is two events — offered, then accepted —
+so goods move only on acceptance and a transfer interrupted halfway leaves them
+with whoever is still physically holding them rather than with nobody.
+
+Replanning starts from that log, which is what separates it from planning
+again. Goods already collected are with whoever collected them, so a carrier
+delivers what it holds and only the rest is planned freshly. A carrier is never
+returned to the general pool: moving its load to someone else is a handover,
+with its own meeting point and its own risk, not something a replan should do
+quietly because the arithmetic came out slightly better.
+
+Delay is absorbed before it is passed on. A kitchen ten minutes late costs the
+customer one, because the courier had slack it was going to spend waiting
+anyway; only once the delay exceeds that slack does it reach the door.
+
+| kitchen runs late by | basket arrives later by |
+| --- | --- |
+| 10 min | 1 min |
+| 25 min | 7 min |
+| 45 min | 27 min |
+
 ## Not modelled
 
 Deliberate omissions, each of which would change the answers:
@@ -170,9 +200,9 @@ Deliberate omissions, each of which would change the answers:
 - **Several customers per courier.** Batching across baskets is a different
   problem — assignment across a fleet rather than planning one basket — and it
   would swamp the result above.
-- **Execution.** These are plans. A courier who is late, a handover where one
-  party never arrives, a disputed transfer: all of that needs custody as an
-  append-only log rather than a field, plus tolerance windows and replanning.
+- **Handover under failure.** Custody and replanning exist, but a handover
+  where one party simply never arrives has no fallback yet — no tolerance
+  window, no return-to-vendor, no reassignment of the waiting courier.
 - **Congestion and stochastic travel.** Planning to the second is fake
   precision when kitchens run late and traffic is a distribution.
 - **Why the incumbents avoid this.** Handovers add minutes and an open bag,
