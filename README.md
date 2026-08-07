@@ -21,8 +21,8 @@ no server, no API key and no routing engine to run.
 
 ## The three plans
 
-| | |
-|---|---|
+|  |  |
+| --- | --- |
 | **Separate** | A courier per vendor, each driving to the customer. What a basket costs today. |
 | **Sequential** | One courier tours every vendor, then delivers once. What the large platforms ship, where they ship anything. |
 | **Rendezvous** | Couriers collect in parallel, meet at a chosen point, and one carries everything onward. |
@@ -33,11 +33,42 @@ couriers.
 
 ## What the numbers say
 
-Sweeping two variables — the angle between the vendors as seen from the
-customer, and how far apart their kitchens finish — gives a clear answer and a
-clear limit.
+Running every pair of Doha vendors to every customer area on measured road
+times — 792 baskets:
 
-```
+|  | separate | one courier, both vendors | handover |
+| --- | --- | --- | --- |
+| ambient goods | 11% | 85% | 4% |
+| hot goods | 31% | 64% | 5% |
+
+**Combining beats a courier per vendor in 79% of baskets, saving a median 19%
+of what separate deliveries would have cost.** The delivery fee you pay twice
+today is, most of the time, avoidable.
+
+Almost all of that comes from one courier touring both vendors rather than from
+a handover, which wins about one basket in twenty. Hot goods push towards
+separate deliveries, because every minute a shared plan adds is a minute the
+food spends getting worse.
+
+## Why a controlled sweep says the opposite
+
+`src/bench/sweep.ts` places two vendors on a circle around the customer and
+varies the angle between them and the gap between their kitchens. It reports
+consolidation winning around 30% of the time — nothing like 79%.
+
+Both numbers are right. The sweep sets the angle uniformly from 0° to 180°, and
+past 60° a shared delivery can never win, so half its cells are foregone
+conclusions. Real vendors are not scattered uniformly around a customer; Doha's
+sit along a corridor, and most real pairs fall inside the angle where combining
+is worth attempting.
+
+That makes the sweep useful for isolating what each variable does, and useless
+as a headline. It answers a question about a city that does not exist. Kept for
+the first job, not the second.
+
+Sweeping those two variables gives a clear answer and a clear limit.
+
+```text
 ambient goods, vendors 8km out
 
   skew\spread   0°  15°  30°  45°  60°  90° 120° 150° 180°
@@ -71,9 +102,10 @@ minutes fresher, at nobody's expense, because the customer was always waiting
 on the slower kitchen. It improves whichever plan you were going to choose, so
 it rarely changes which one that is.
 
-**Separate deliveries still win most of the time.** Consolidation is a niche
-worth detecting, not a default worth applying, and a planner that always
-consolidated would be wrong more often than right.
+**Within the sweep's uniform geometry, separate deliveries win most cells.**
+Read that as a statement about the sweep, not about Doha — the field study
+above is the one to quote. What the sweep establishes is *why* a basket goes
+one way or the other, which is the part that transfers.
 
 ## Who pays
 
@@ -132,7 +164,7 @@ Deliberate omissions, each of which would change the answers:
 
 ## Layout
 
-```
+```text
 src/domain/      types, and the geometry helpers
 src/routing/     the travel-time seam: measured table, straight-line fallback
 src/planner/     the three strategies, scoring, and cost allocation
