@@ -21,9 +21,9 @@ import { DEFAULT_CONFIG } from './planner/courierRun.ts'
 import { objectiveFor, operatingCost, rank } from './planner/evaluate.ts'
 import { planAll } from './planner/strategies.ts'
 import { straightLineEta } from './routing/eta.ts'
+import { routedEta } from './routing/matrix.ts'
 import { PlanMap } from './ui/PlanMap.tsx'
 
-const config = { ...DEFAULT_CONFIG, eta: straightLineEta }
 const PLACED_AT = 0
 
 const STRATEGY_BLURB: Record<StrategyName, string> = {
@@ -41,6 +41,12 @@ export default function App() {
   const [temperature, setTemperature] = useState<Temperature>('hot')
   const [allSchedulable, setAllSchedulable] = useState(false)
   const [chosen, setChosen] = useState<StrategyName | null>(null)
+  const [useRealRoads, setUseRealRoads] = useState(true)
+
+  const config = useMemo(
+    () => ({ ...DEFAULT_CONFIG, eta: useRealRoads ? routedEta : straightLineEta }),
+    [useRealRoads],
+  )
 
   const basket = useMemo<Basket>(() => {
     const customer = CUSTOMER_AREAS.find((area) => area.id === customerId) ?? CUSTOMER_AREAS[0]
@@ -73,7 +79,7 @@ export default function App() {
       objective: objectiveFor(basket),
     })
     return { scored: rank(attempts, basket), rejected: attempts.filter((a) => !isPlan(a)) }
-  }, [basket])
+  }, [basket, config])
 
   const shown = scored.find((entry) => entry.plan.strategy === chosen) ?? scored[0] ?? null
 
@@ -115,7 +121,7 @@ export default function App() {
       byValue: valueProportionalShares(values, joint),
       alone: Object.fromEntries(ids.map((id) => [id, costOf([id])])),
     }
-  }, [basket, shown])
+  }, [basket, shown, config])
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -173,6 +179,19 @@ export default function App() {
                   block
                 />
               </label>
+
+              <div className="field field-inline" style={{ marginBottom: 12 }}>
+                <Switch checked={useRealRoads} onChange={setUseRealRoads} size="small" />
+                <span>
+                  Use measured road times
+                  <Typography.Text type="secondary" className="hint">
+                    Driving times from the real Doha network, precomputed offline. Turn
+                    this off to fall back to straight-line distance with a fixed detour
+                    factor, which flatters long highway runs and undercharges short
+                    urban hops.
+                  </Typography.Text>
+                </span>
+              </div>
 
               <div className="field field-inline">
                 <Switch checked={allSchedulable} onChange={setAllSchedulable} size="small" />
