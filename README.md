@@ -42,8 +42,18 @@ times — 792 baskets:
 | hot goods | 31% | 64% | 5% |
 
 **Combining beats a courier per vendor in 79% of baskets, saving a median 19%
-of what separate deliveries would have cost.** The delivery fee you pay twice
-today is, most of the time, avoidable.
+of what separate deliveries would have cost.**
+
+For the customer that is a median bill of **71.66 QAR for two deliveries today
+against 52.31 QAR for one** — a quarter off, and one doorstep visit instead of
+two.
+
+It is a trade, not a free win. One courier covering both vendors is cheaper to
+run than two working in parallel, and slower: the median basket arrives **two
+minutes later**, and more than half arrive later at all. On about one basket in
+twenty the customer pays more, because the plan is chosen on total cost
+including freshness rather than on the customer's fee alone. A version that
+sold this as strictly better would be lying.
 
 Almost all of that comes from one courier touring both vendors rather than from
 a handover, which wins about one basket in twenty. Hot goods push towards

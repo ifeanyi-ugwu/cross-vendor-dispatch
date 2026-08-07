@@ -19,6 +19,7 @@ import { COURIERS, CUSTOMER_AREAS, MEETING_POINTS, VENDORS } from './fixtures/do
 import { equalShares, shapleyShares, valueProportionalShares } from './planner/allocate.ts'
 import { DEFAULT_CONFIG } from './planner/courierRun.ts'
 import { leaders, objectiveFor, operatingCost, rank } from './planner/evaluate.ts'
+import { customerBill } from './planner/pricing.ts'
 import { planAll } from './planner/strategies.ts'
 import { straightLineEta } from './routing/eta.ts'
 import { routedEta } from './routing/matrix.ts'
@@ -86,6 +87,12 @@ export default function App() {
   // Plans within the model's own accuracy of each other. Calling one of them
   // best would be inventing a preference the numbers do not support.
   const tied = new Set(leaders(scored).map((entry) => entry.plan.strategy))
+
+  const bill = useMemo(() => {
+    const separate = scored.find((entry) => entry.plan.strategy === 'separate')
+    if (!separate || !shown || basket.orders.length < 2) return null
+    return customerBill(separate.plan, shown.plan, basket)
+  }, [scored, shown, basket])
 
   const fixedScheduleCount = vendorIds.filter(
     (id) => VENDORS.find((vendor) => vendor.id === id)?.schedulable === false,
@@ -304,8 +311,51 @@ export default function App() {
               )}
             </Card>
 
+            {bill && (
+              <Card size="small" title="What this costs you" style={{ marginTop: 16 }}>
+                <Row gutter={16}>
+                  <Col xs={12} sm={6}>
+                    <Statistic
+                      title={`Today (${bill.deliveriesToday} deliveries)`}
+                      value={bill.today}
+                      precision={2}
+                      suffix="QAR"
+                    />
+                  </Col>
+                  <Col xs={12} sm={6}>
+                    <Statistic title="Shared (1 delivery)" value={bill.shared} precision={2} suffix="QAR" />
+                  </Col>
+                  <Col xs={12} sm={6}>
+                    <Statistic
+                      title={bill.saved >= 0 ? 'You save' : 'You pay more'}
+                      value={Math.abs(bill.saved)}
+                      precision={2}
+                      suffix="QAR"
+                      valueStyle={{ color: bill.saved >= 0 ? '#16a34a' : '#dc2626' }}
+                    />
+                  </Col>
+                  <Col xs={12} sm={6}>
+                    <Statistic
+                      title={bill.arrivesEarlierMs >= 0 ? 'Arrives earlier' : 'Arrives later'}
+                      value={Math.abs(bill.arrivesEarlierMs) / 60_000}
+                      precision={0}
+                      suffix="min"
+                      valueStyle={{ color: bill.arrivesEarlierMs >= 0 ? '#16a34a' : '#b45309' }}
+                    />
+                  </Col>
+                </Row>
+                <Typography.Paragraph type="secondary" className="hint" style={{ marginTop: 10 }}>
+                  One courier covering both vendors is cheaper to run than two working in
+                  parallel, and slower. Most baskets save money and arrive a few minutes
+                  later, so this is a trade rather than a free win — and on a minority it
+                  goes the wrong way, because the plan is picked on total cost including
+                  freshness rather than on your fee alone.
+                </Typography.Paragraph>
+              </Card>
+            )}
+
             {shares && (
-              <Card size="small" title="Who pays for the delivery" style={{ marginTop: 16 }}>
+              <Card size="small" title="What each vendor pays towards it" style={{ marginTop: 16 }}>
                 <Table
                   size="small"
                   pagination={false}
